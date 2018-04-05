@@ -7,12 +7,15 @@ import (
 	"os"
 	"os/signal"
 	"time"
-	"fmt"
 
 	"github.com/gorilla/websocket"
 	"github.com/ulyssessouza/clf-analyzer-server/data"
 	"encoding/json"
+	"github.com/ulyssessouza/clf-analyzer-server/http"
+	"fmt"
 )
+
+const apiVersion= "/v1"
 
 var addr = flag.String("addr", "localhost:8000", "http service address")
 var interruptChan = make(chan os.Signal, 1)
@@ -23,7 +26,7 @@ func UpdateScoresLoop(conn *websocket.Conn, doneChannel *chan struct{}) {
 		_, message, err := conn.ReadMessage()
 		if err != nil {
 			log.Println("read:", err)
-			continue
+			return
 		}
 
 		var sectionScoreEntries []data.SectionScoreEntry
@@ -43,29 +46,40 @@ func UpdateAlertsLoop(conn *websocket.Conn, doneChannel *chan struct{}) {
 		_, message, err := conn.ReadMessage()
 		if err != nil {
 			log.Println("read:", err)
-			continue
+			return
 		}
 
-		var alertEntries []data.AlertEntry
+		var alertEntries []http.AlertEntry
 		json.Unmarshal(message, &alertEntries)
 
 		var newAlert []string
 		for _, alertEntry := range alertEntries {
-			var msg string
-			if alertEntry.Overcharged {
-				msg = "[Overcharged](fg-red)"
+			var listMsg string
+			if alertEntry.Charge > alertEntry.Limit {
+				listMsg = "[Overcharged](fg-red)"
 			} else {
-				msg = "[Back from overcharge](fg-green)"
+				listMsg = "[Back from overcharge](fg-green)"
 			}
-			newAlert = append(newAlert, fmt.Sprintf("[%s] %s", alertEntry.AlertTime.String(), msg))
+			newAlert = append(newAlert, fmt.Sprintf("[%s] %s", alertEntry.AlertTime.String(), listMsg))
 		}
+
+		if len(alertEntries) > 0 {
+			firstAlertEntry := alertEntries[0]
+			if firstAlertEntry.Charge > firstAlertEntry.Limit {
+				alertStatus = fmt.Sprintf("[High traffic generated an alert - hits = %d, triggered at %s](fg-red) on a limit of %d",
+					firstAlertEntry.Charge, firstAlertEntry.AlertTime, firstAlertEntry.Limit)
+			} else {
+				alertStatus = fmt.Sprintf("[Traffic is normal with %d messages in a limit of %d in the last 2 minutes](fg-green)",
+					firstAlertEntry.Charge, firstAlertEntry.Limit)
+			}
+		}
+
 		alerts = newAlert
 	}
 }
 
-
 func getConnection(path string) *websocket.Conn{
-	u := url.URL{Scheme: "ws", Host: *addr, Path: path}
+	u := url.URL{Scheme: "ws", Host: *addr, Path: fmt.Sprintf("%s%s", apiVersion, path)}
 	log.Printf("Connecting to %s", u.String())
 
 	conn, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
@@ -75,9 +89,9 @@ func getConnection(path string) *websocket.Conn{
 	return conn
 }
 
-// Cleanly close the connection by sending a close message and then
-// waiting (with timeout) for the server to close the connection.
+// Cleanly close the connection by sending a close message
 func closeConn(conn *websocket.Conn) bool {
+	log.Printf("Disconnecting...\n")
 	err := conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
 	if err != nil {
 		log.Println("write close:", err)
@@ -94,13 +108,11 @@ func main() {
 	scoreConn := getConnection("/score")
 	defer scoreConn.Close()
 	scoreDoneChan := make(chan struct{})
-	defer close(scoreDoneChan)
 	go UpdateScoresLoop(scoreConn, &scoreDoneChan)
 
 	alertConn := getConnection("/alert")
 	defer alertConn.Close()
 	alertDoneChan := make(chan struct{})
-	defer close(alertDoneChan)
 	go UpdateAlertsLoop(alertConn, &alertDoneChan)
 
 	go ShowUi()
@@ -113,8 +125,12 @@ func main() {
 			return
 		case <-interruptChan:
 			log.Println("Bye bye!")
-			if !closeConn(scoreConn) || !closeConn(alertConn){
-				return
+			closeConn(scoreConn)
+			closeConn(alertConn)
+			select {
+			case <-scoreDoneChan:
+			case <-alertDoneChan:
+			case <-time.After(time.Second):
 			}
 			select {
 			case <-scoreDoneChan:

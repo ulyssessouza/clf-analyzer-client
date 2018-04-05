@@ -10,6 +10,7 @@ import (
 
 var scores []string
 var alerts []string
+var alertStatus string
 
 func ShowUi() {
 	var ticker = time.NewTicker(time.Second)
@@ -29,9 +30,10 @@ func ShowUi() {
 		return ps
 	})()
 
-	statusLine := termui.NewPar("[Borderless Text](fg-red)")
-	statusLine.Height = 1
-	statusLine.Border = false
+	alertStatusLine := termui.NewPar("")
+	alertStatusLine.Text = "[Borderless Text](fg-red)"
+	alertStatusLine.Height = 1
+	alertStatusLine.Border = false
 
 	instructionsLine := termui.NewPar("[Q]uit")
 	instructionsLine.Height = 1
@@ -63,7 +65,7 @@ func ShowUi() {
 			termui.NewCol(12, 0, lineChart),
 		),
 		termui.NewRow(
-			termui.NewCol(10, 0, statusLine),
+			termui.NewCol(10, 0, alertStatusLine),
 			termui.NewCol(2, 0, instructionsLine),
 
 		))
@@ -74,6 +76,7 @@ func ShowUi() {
 
 			highScoresList.Items = scores
 			lastAlertsList.Items = alerts
+			alertStatusLine.Text = alertStatus
 
 			termui.Body.Align()
 			termui.Render(termui.Body)
