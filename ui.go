@@ -2,7 +2,6 @@ package main
 
 import (
 	"os"
-	"math"
 
 	"github.com/gizak/termui"
 	"time"
@@ -10,25 +9,16 @@ import (
 
 var scores []string
 var alerts []string
+var hits []float64
 var alertStatus string
 
 func ShowUi() {
-	var ticker = time.NewTicker(time.Second)
 
 	err := termui.Init()
 	if err != nil {
 		panic(err)
 	}
 	defer termui.Close()
-
-	sinps := (func() []float64 {
-		n := 220
-		ps := make([]float64, n)
-		for i := range ps {
-			ps[i] = 1 + math.Sin(float64(i)/5)
-		}
-		return ps
-	})()
 
 	alertStatusLine := termui.NewPar("")
 	alertStatusLine.Text = "[Borderless Text](fg-red)"
@@ -46,13 +36,12 @@ func ShowUi() {
 
 	lastAlertsList := termui.NewList()
 	lastAlertsList.ItemFgColor = termui.ColorWhite
-	lastAlertsList.BorderLabel = "Last alerts"
+	lastAlertsList.BorderLabel = "Latest alerts"
 	lastAlertsList.Height = 12
 
 	lineChart := termui.NewLineChart()
-	lineChart.BorderLabel = "dot-mode Line Chart"
+	lineChart.BorderLabel = "Traffic volume"
 	lineChart.Mode = "dot"
-	lineChart.Data = sinps[4:]
 	lineChart.Height = 12
 	lineChart.AxesColor = termui.ColorWhite
 	lineChart.LineColor = termui.ColorCyan | termui.AttrBold
@@ -70,18 +59,22 @@ func ShowUi() {
 
 		))
 
+	// Goroutine to update the data in the UI components every second
 	go func () {
+		ticker := time.NewTicker(time.Second)
 		for {
 			<-ticker.C
 
 			highScoresList.Items = scores
 			lastAlertsList.Items = alerts
 			alertStatusLine.Text = alertStatus
+			lineChart.Data = hits
 
 			termui.Body.Align()
 			termui.Render(termui.Body)
 		}
 	}()
+
 	termui.Handle("/sys/kbd/q", func(termui.Event) {
 		termui.StopLoop()
 		interruptChan <- os.Interrupt
