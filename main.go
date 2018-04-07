@@ -13,7 +13,6 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/ulyssessouza/clf-analyzer-server/data"
 	"github.com/ulyssessouza/clf-analyzer-server/http"
-	"github.com/gizak/termui"
 )
 
 const apiVersion1 = "/v1"
@@ -122,12 +121,14 @@ func getConn(path string) *websocket.Conn{
 }
 
 // Cleanly close the connection by sending a close message
-func closeConn(conn *websocket.Conn) bool {
+func closeConn(conns... *websocket.Conn) bool {
 	log.Printf("Disconnecting...\n")
-	err := conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
-	if err != nil {
-		log.Println("write close:", err)
-		return false
+	for _, conn := range conns {
+		err := conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
+		if err != nil {
+			log.Println("write close:", err)
+			return false
+		}
 	}
 	return true
 }
@@ -157,19 +158,12 @@ func main() {
 			return
 		case <-interruptChan:
 			log.Println("Bye bye!")
-			closeConn(scoreConn)
-			closeConn(alertConn)
+			closeConn(scoreConn, alertConn)
 			select {
 			case <-scoreDoneChan:
 			case <-alertDoneChan:
 			case <-time.After(time.Second):
 			}
-			select {
-			case <-scoreDoneChan:
-			case <-alertDoneChan:
-			case <-time.After(time.Second):
-			}
-			termui.StopLoop()
 			return
 		}
 	}

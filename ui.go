@@ -2,9 +2,9 @@ package main
 
 import (
 	"os"
-
-	"github.com/gizak/termui"
 	"time"
+
+	"github.com/ulyssessouza/termui"
 )
 
 var scores []string
