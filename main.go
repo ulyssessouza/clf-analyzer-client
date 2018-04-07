@@ -12,6 +12,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/ulyssessouza/clf-analyzer-server/data"
 	"github.com/ulyssessouza/clf-analyzer-server/http"
+	"github.com/gizak/termui"
 )
 
 const apiVersion1 = "/v1"
@@ -20,6 +21,7 @@ var addr = flag.String("addr", "localhost:8000", "http service address")
 var interruptChan = make(chan os.Signal, 1)
 
 func UpdateScoresLoop(conn *websocket.Conn, doneChannel *chan struct{}) {
+	defer conn.Close()
 	defer close(*doneChannel)
 	for {
 		var sectionScoreEntries []data.SectionScoreEntry
@@ -27,6 +29,7 @@ func UpdateScoresLoop(conn *websocket.Conn, doneChannel *chan struct{}) {
 		if err != nil {
 			return
 		}
+		conn.WriteJSON(http.Ack{Code: http.AckOK})
 
 		var newScore []string
 		for _, scoreEntry := range sectionScoreEntries {
@@ -37,6 +40,7 @@ func UpdateScoresLoop(conn *websocket.Conn, doneChannel *chan struct{}) {
 }
 
 func UpdateAlertsLoop(conn *websocket.Conn, doneChannel *chan struct{}) {
+	defer conn.Close()
 	defer close(*doneChannel)
 	for {
 		var alertEntries []http.AlertEntry
@@ -44,6 +48,7 @@ func UpdateAlertsLoop(conn *websocket.Conn, doneChannel *chan struct{}) {
 		if err != nil {
 			return
 		}
+		conn.WriteJSON(http.Ack{Code: http.AckOK})
 
 		var newAlert []string
 		for _, alertEntry := range alertEntries {
@@ -75,13 +80,17 @@ func UpdateAlertsLoop(conn *websocket.Conn, doneChannel *chan struct{}) {
 }
 
 func UpdateHitsLoop(conn *websocket.Conn, doneChannel *chan struct{}) {
+	defer conn.Close()
 	defer close(*doneChannel)
 	for {
 		var hitsEntries []float64
 		err := conn.ReadJSON(&hitsEntries)
-		if err == nil {
-			hits = hitsEntries
+		if err != nil {
+			break
 		}
+
+		conn.WriteJSON(http.Ack{Code: http.AckOK})
+		hits = hitsEntries
 	}
 }
 
@@ -93,6 +102,8 @@ func getConn(path string) *websocket.Conn {
 	if err != nil {
 		log.Fatal("dial:", err)
 	}
+
+	conn.WriteJSON(http.Ack{Code: http.AckOK})
 	return conn
 }
 
@@ -140,7 +151,10 @@ func main() {
 			case <-alertDoneChan:
 			case <-time.After(time.Second):
 			}
-			return
+			break
 		}
 	}
+
+	termui.StopLoop()
+	termui.Close()
 }

@@ -13,7 +13,6 @@ var hits []float64
 var alertStatus string
 
 func ShowUi() {
-
 	err := termui.Init()
 	if err != nil {
 		panic(err)
