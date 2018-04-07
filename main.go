@@ -8,7 +8,6 @@ import (
 	"time"
 	"os/signal"
 	"net/url"
-	"encoding/json"
 
 	"github.com/gorilla/websocket"
 	"github.com/ulyssessouza/clf-analyzer-server/data"
@@ -23,16 +22,9 @@ var interruptChan = make(chan os.Signal, 1)
 func UpdateScoresLoop(conn *websocket.Conn, doneChannel *chan struct{}) {
 	defer close(*doneChannel)
 	for {
-		_, message, err := conn.ReadMessage()
-		if err != nil {
-			log.Println("read:", err)
-			return
-		}
-
 		var sectionScoreEntries []data.SectionScoreEntry
-		err = json.Unmarshal(message, &sectionScoreEntries)
+		err := conn.ReadJSON(&sectionScoreEntries)
 		if err != nil {
-			log.Println("unmarshal: ", err)
 			return
 		}
 
@@ -47,16 +39,9 @@ func UpdateScoresLoop(conn *websocket.Conn, doneChannel *chan struct{}) {
 func UpdateAlertsLoop(conn *websocket.Conn, doneChannel *chan struct{}) {
 	defer close(*doneChannel)
 	for {
-		_, message, err := conn.ReadMessage()
-		if err != nil {
-			log.Println("read:", err)
-			return
-		}
-
 		var alertEntries []http.AlertEntry
-		err = json.Unmarshal(message, &alertEntries)
+		err := conn.ReadJSON(&alertEntries)
 		if err != nil {
-			log.Println("Unmarshal: ", err)
 			return
 		}
 
@@ -92,24 +77,15 @@ func UpdateAlertsLoop(conn *websocket.Conn, doneChannel *chan struct{}) {
 func UpdateHitsLoop(conn *websocket.Conn, doneChannel *chan struct{}) {
 	defer close(*doneChannel)
 	for {
-		_, message, err := conn.ReadMessage()
-		if err != nil {
-			log.Println("read:", err)
-			return
-		}
-
 		var hitsEntries []float64
-		err = json.Unmarshal(message, &hitsEntries)
-		if err != nil {
-			log.Println("Unmarshal: ", err)
-			return
+		err := conn.ReadJSON(&hitsEntries)
+		if err == nil {
+			hits = hitsEntries
 		}
-
-		hits = hitsEntries
 	}
 }
 
-func getConn(path string) *websocket.Conn{
+func getConn(path string) *websocket.Conn {
 	u := url.URL{Scheme: "ws", Host: *addr, Path: fmt.Sprintf("%s%s", apiVersion1, path)}
 	log.Printf("Connecting to %s", u.String())
 
