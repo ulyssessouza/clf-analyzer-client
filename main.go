@@ -32,7 +32,7 @@ func UpdateScoresLoop(conn *websocket.Conn, doneChannel *chan struct{}) {
 
 		var newScore []string
 		for _, scoreEntry := range sectionScoreEntries {
-			newScore = append(newScore, fmt.Sprintf("[%d] %s", scoreEntry.Hits, scoreEntry.Section))
+			newScore = append(newScore, fmt.Sprintf("[%d] [%d](fg-green)/[%d](fg-red) %s", scoreEntry.Hits, scoreEntry.Success, scoreEntry.Fail, scoreEntry.Section))
 		}
 		scores = newScore
 	}
@@ -107,7 +107,7 @@ func getConn(addr string, path string) *websocket.Conn {
 }
 
 // Cleanly close the connection by sending a close message
-func closeConn(conns... *websocket.Conn) bool {
+func closeConn(conns ...*websocket.Conn) bool {
 	log.Printf("Disconnecting...\n")
 	for _, conn := range conns {
 		err := conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
