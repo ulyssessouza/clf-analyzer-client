@@ -2,22 +2,21 @@ package main
 
 import (
 	"flag"
-	"log"
-	"os"
 	"fmt"
-	"time"
-	"os/signal"
+	"log"
 	"net/url"
+	"os"
+	"os/signal"
+	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/ulyssessouza/clf-analyzer-server/data"
 	"github.com/ulyssessouza/clf-analyzer-server/http"
-	"github.com/gizak/termui"
+	"github.com/ulyssessouza/termui"
 )
 
 const apiVersion1 = "/v1"
 
-var addr = flag.String("addr", "localhost:8000", "http service address")
 var interruptChan = make(chan os.Signal, 1)
 
 func UpdateScoresLoop(conn *websocket.Conn, doneChannel *chan struct{}) {
@@ -94,8 +93,8 @@ func UpdateHitsLoop(conn *websocket.Conn, doneChannel *chan struct{}) {
 	}
 }
 
-func getConn(path string) *websocket.Conn {
-	u := url.URL{Scheme: "ws", Host: *addr, Path: fmt.Sprintf("%s%s", apiVersion1, path)}
+func getConn(addr string, path string) *websocket.Conn {
+	u := url.URL{Scheme: "ws", Host: addr, Path: fmt.Sprintf("%s%s", apiVersion1, path)}
 	log.Printf("Connecting to %s", u.String())
 
 	conn, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
@@ -121,11 +120,12 @@ func closeConn(conns... *websocket.Conn) bool {
 }
 
 func main() {
+	var addr = flag.String("addr", "localhost:8000", "http service address")
 	flag.Parse()
 	log.SetFlags(0)
 	signal.Notify(interruptChan, os.Interrupt)
 
-	scoreConn, alertConn, hitsConn := getConn("/score"), getConn("/alert"), getConn("/hits")
+	scoreConn, alertConn, hitsConn := getConn(*addr, "/score"), getConn(*addr, "/alert"), getConn(*addr, "/hits")
 	defer scoreConn.Close()
 	defer alertConn.Close()
 	defer hitsConn.Close()

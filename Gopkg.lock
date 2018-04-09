@@ -161,7 +161,7 @@
   branch = "master"
   name = "github.com/ulyssessouza/clf-analyzer-server"
   packages = ["core","data","http"]
-  revision = "c2d5a57afe6bf9af83a10cf289e69f39be2244b9"
+  revision = "c52ccf65b4caf558553b8ba3c5ae9dea42cadf5f"
 
 [[projects]]
   name = "github.com/ulyssessouza/termui"

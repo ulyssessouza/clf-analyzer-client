@@ -55,11 +55,10 @@ func ShowUi() {
 		termui.NewRow(
 			termui.NewCol(10, 0, alertStatusLine),
 			termui.NewCol(2, 0, instructionsLine),
-
 		))
 
 	// Goroutine to update the data in the UI components every second
-	go func () {
+	go func() {
 		ticker := time.NewTicker(time.Second)
 		for {
 			<-ticker.C
@@ -80,4 +79,3 @@ func ShowUi() {
 	})
 	termui.Loop()
 }
-
